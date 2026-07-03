@@ -109,7 +109,7 @@
 <script>
     // Configuration
     const CONFIG = {
-        SCRIPT_URL: 'SUBSTITUIR_PELA_URL_DO_WEB_APP' // Will be filled later
+        SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzED3IkIoA62dGHepXE2bmGqjwU-TKhhlra7pK4-NLCOKr5dzzYnUiQKQf_O0E4qVlwGw/exec' // Will be filled later
     };
 
     // Elements
@@ -139,7 +139,7 @@
             return;
         }
 
-        if (CONFIG.SCRIPT_URL === 'SUBSTITUIR_PELA_URL_DO_WEB_APP') {
+        if (CONFIG.SCRIPT_URL === 'SUBSTITUIR_PELA_URL_DO_WEB_APP' || !CONFIG.SCRIPT_URL) {
             // Mock mode for local testing without Apps Script
             setTimeout(() => {
                 populateData({
@@ -244,7 +244,7 @@
             data_resposta: new Date().toISOString()
         };
 
-        if (CONFIG.SCRIPT_URL === 'SUBSTITUIR_PELA_URL_DO_WEB_APP') {
+        if (CONFIG.SCRIPT_URL === 'SUBSTITUIR_PELA_URL_DO_WEB_APP' || !CONFIG.SCRIPT_URL) {
             // Mock success
             setTimeout(() => {
                 formContent.classList.add('hidden');

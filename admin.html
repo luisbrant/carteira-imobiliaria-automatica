@@ -95,7 +95,7 @@
     // Configuration
     const CONFIG = {
         SENHA_ADMIN: 'imob2026',
-        SCRIPT_URL: 'SUBSTITUIR_PELA_URL_DO_WEB_APP', // Will be filled later
+        SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzED3IkIoA62dGHepXE2bmGqjwU-TKhhlra7pK4-NLCOKr5dzzYnUiQKQf_O0E4qVlwGw/exec', // Will be filled later
         FORM_URL: window.location.origin + window.location.pathname.replace('admin.html', '') + 'form.html',
         EMPRESA: 'Vitória da União 03'
     };
@@ -281,7 +281,7 @@
             return;
         }
 
-        if(CONFIG.SCRIPT_URL === 'SUBSTITUIR_PELA_URL_DO_WEB_APP') {
+        if(CONFIG.SCRIPT_URL === 'SUBSTITUIR_PELA_URL_DO_WEB_APP' || !CONFIG.SCRIPT_URL) {
             alert('Aviso: O URL do Google Apps Script ainda não foi configurado. As mensagens não serão realmente enviadas, mas o fluxo será simulado no painel.');
         }
 
@@ -313,7 +313,7 @@
 
                 addLog(`Enviando para ${record.nome_proprietario} (${record.telefone_whatsapp_limpo})...`, 'info');
 
-                if (CONFIG.SCRIPT_URL !== 'SUBSTITUIR_PELA_URL_DO_WEB_APP') {
+                if (CONFIG.SCRIPT_URL !== 'SUBSTITUIR_PELA_URL_DO_WEB_APP' && CONFIG.SCRIPT_URL) {
                     // Send request to Apps Script
                     const response = await fetch(CONFIG.SCRIPT_URL, {
                         method: 'POST',
