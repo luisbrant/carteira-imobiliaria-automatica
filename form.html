@@ -257,16 +257,20 @@
             // Send to Apps Script
             const response = await fetch(CONFIG.SCRIPT_URL, {
                 method: 'POST',
-                mode: 'no-cors', // Avoid CORS errors, but means we can't read response body
                 headers: {
-                    'Content-Type': 'text/plain;charset=utf-8', // Plain text is safer for no-cors Apps Script
+                    'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: JSON.stringify(payload)
+                body: new URLSearchParams(payload)
             });
 
-            // Assume success
-            formContent.classList.add('hidden');
-            successMessage.classList.remove('hidden');
+            const result = await response.json();
+
+            if (result.success) {
+                formContent.classList.add('hidden');
+                successMessage.classList.remove('hidden');
+            } else {
+                throw new Error(result.error || 'Erro desconhecido ao salvar.');
+            }
 
         } catch (error) {
             console.error(error);
