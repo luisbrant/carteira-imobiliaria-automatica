@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Carteira Imobiliária Automática</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- PapaParse for CSV parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+</head>
+<body>
+
+<div class="container">
+    <!-- Login Screen -->
+    <div id="login-screen" class="card">
+        <h2 class="text-center">Acesso Restrito</h2>
+        <div class="form-group">
+            <label for="password">Senha de Acesso</label>
+            <input type="password" id="password" class="form-control" placeholder="Digite a senha">
+        </div>
+        <button id="btn-login" class="btn btn-primary">Entrar</button>
+        <p id="login-error" class="hidden" style="color: var(--danger-color); margin-top: 10px; text-align: center;">Senha incorreta</p>
+    </div>
+
+    <!-- Admin Dashboard -->
+    <div id="admin-dashboard" class="hidden">
+        <div class="card">
+            <h2>Atualização de Carteira via WhatsApp</h2>
+            <p>Faça o upload do arquivo CSV com a lista de imóveis e proprietários.</p>
+
+            <div id="drop-zone" class="drop-zone">
+                <p>Arraste e solte o arquivo CSV aqui ou clique para selecionar</p>
+                <input type="file" id="csv-file" accept=".csv" class="hidden">
+                <button type="button" class="btn btn-primary" onclick="document.getElementById('csv-file').click()">Selecionar Arquivo</button>
+            </div>
+
+            <div id="file-info" class="hidden" style="margin-top: 15px; text-align: center;">
+                <p>Arquivo selecionado: <strong id="file-name"></strong></p>
+            </div>
+        </div>
+
+        <div id="preview-section" class="card hidden">
+            <h3>Preview dos Dados (Primeiros 20 registros)</h3>
+            <div class="table-responsive">
+                <table id="preview-table">
+                    <thead>
+                        <tr>
+                            <th>ID Imóvel</th>
+                            <th>Proprietário</th>
+                            <th>WhatsApp</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="preview-body">
+                        <!-- Data will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="summary-stats">
+                <div class="stat-box">
+                    <span class="stat-number" id="stat-total">0</span>
+                    Total de Registros
+                </div>
+                <div class="stat-box success">
+                    <span class="stat-number" id="stat-valid">0</span>
+                    Válidos
+                </div>
+                <div class="stat-box error">
+                    <span class="stat-number" id="stat-invalid">0</span>
+                    Inválidos
+                </div>
+            </div>
+
+            <button id="btn-disparar" class="btn btn-whatsapp" disabled>Disparar Mensagens WhatsApp</button>
+        </div>
+
+        <div id="progress-section" class="card hidden">
+            <h3>Progresso do Envio</h3>
+
+            <div class="progress-container">
+                <div id="progress-bar" class="progress-bar"></div>
+            </div>
+            <p class="text-center" id="progress-text">0 de 0 enviados</p>
+
+            <h4 style="margin-top: 20px;">Logs de Envio</h4>
+            <div id="log-box" class="log-box">
+                <!-- Logs will appear here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Configuration
+    const CONFIG = {
+        SENHA_ADMIN: 'imob2026',
+        SCRIPT_URL: 'SUBSTITUIR_PELA_URL_DO_WEB_APP', // Will be filled later
+        FORM_URL: window.location.origin + window.location.pathname.replace('admin.html', '') + 'form.html',
+        EMPRESA: 'Vitória da União 03'
+    };
+
+    // State
+    let parsedData = [];
+    let validRecords = [];
+
+    // Elements
+    const loginScreen = document.getElementById('login-screen');
+    const adminDashboard = document.getElementById('admin-dashboard');
+    const passwordInput = document.getElementById('password');
+    const btnLogin = document.getElementById('btn-login');
+    const loginError = document.getElementById('login-error');
+
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('csv-file');
+    const fileInfo = document.getElementById('file-info');
+    const fileName = document.getElementById('file-name');
+
+    const previewSection = document.getElementById('preview-section');
+    const previewBody = document.getElementById('preview-body');
+    const btnDisparar = document.getElementById('btn-disparar');
+
+    const statTotal = document.getElementById('stat-total');
+    const statValid = document.getElementById('stat-valid');
+    const statInvalid = document.getElementById('stat-invalid');
+
+    const progressSection = document.getElementById('progress-section');
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const logBox = document.getElementById('log-box');
+
+    // Authentication
+    btnLogin.addEventListener('click', () => {
+        if (passwordInput.value === CONFIG.SENHA_ADMIN) {
+            loginScreen.classList.add('hidden');
+            adminDashboard.classList.remove('hidden');
+        } else {
+            loginError.classList.remove('hidden');
+        }
+    });
+
+    passwordInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') btnLogin.click();
+    });
+
+    // File Handling
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+            handleFile(e.dataTransfer.files[0]);
+        }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length) {
+            handleFile(e.target.files[0]);
+        }
+    });
+
+    function handleFile(file) {
+        if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
+            alert('Por favor, selecione um arquivo CSV.');
+            return;
+        }
+
+        fileName.textContent = file.name;
+        fileInfo.classList.remove('hidden');
+
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: function(results) {
+                processData(results.data);
+            },
+            error: function(error) {
+                alert('Erro ao ler arquivo CSV: ' + error.message);
+            }
+        });
+    }
+
+    // Phone validation E.164
+    function isValidPhone(phone) {
+        const phoneRegex = /^\+[1-9]\d{10,14}$/;
+        // Clean phone to allow basic fixing
+        let cleanPhone = phone ? phone.toString().trim() : '';
+        if (cleanPhone && !cleanPhone.startsWith('+')) {
+            // Assume Brazil if no plus
+            cleanPhone = cleanPhone.replace(/\D/g, '');
+            if (cleanPhone.length >= 10) {
+                cleanPhone = '+55' + cleanPhone;
+            } else {
+                 cleanPhone = '+' + cleanPhone;
+            }
+        }
+        return { valid: phoneRegex.test(cleanPhone), formatted: cleanPhone };
+    }
+
+    function processData(data) {
+        parsedData = data;
+        validRecords = [];
+        let invalidCount = 0;
+
+        previewBody.innerHTML = '';
+
+        const previewLimit = Math.min(data.length, 20);
+
+        for (let i = 0; i < data.length; i++) {
+            const row = data[i];
+
+            // Check required fields based on prompt
+            const hasId = !!row.id_imovel;
+            const hasProprietario = !!row.nome_proprietario;
+            const hasEndereco = !!row.endereco_resumo;
+
+            const phoneCheck = isValidPhone(row.telefone_whatsapp);
+
+            const isValid = hasId && hasProprietario && hasEndereco && phoneCheck.valid;
+
+            if (isValid) {
+                row.telefone_whatsapp_limpo = phoneCheck.formatted;
+                validRecords.push(row);
+            } else {
+                invalidCount++;
+            }
+
+            // Render preview for first 20
+            if (i < previewLimit) {
+                const tr = document.createElement('tr');
+                let statusHtml = isValid
+                    ? '<span class="status-valid">Válido</span>'
+                    : '<span class="status-invalid">Inválido</span>';
+
+                tr.innerHTML = `
+                    <td>${row.id_imovel || '-'}</td>
+                    <td>${row.nome_proprietario || '-'}</td>
+                    <td>${row.telefone_whatsapp || '-'}</td>
+                    <td>${statusHtml}</td>
+                `;
+                previewBody.appendChild(tr);
+            }
+        }
+
+        statTotal.textContent = data.length;
+        statValid.textContent = validRecords.length;
+        statInvalid.textContent = invalidCount;
+
+        previewSection.classList.remove('hidden');
+
+        if (validRecords.length > 0) {
+            btnDisparar.removeAttribute('disabled');
+            btnDisparar.textContent = `Disparar ${validRecords.length} Mensagens WhatsApp`;
+        } else {
+            btnDisparar.setAttribute('disabled', 'disabled');
+            btnDisparar.textContent = 'Nenhum registro válido para enviar';
+        }
+    }
+
+    // Add Log entry
+    function addLog(message, type) {
+        const entry = document.createElement('div');
+        entry.className = `log-entry ${type}`;
+        const time = new Date().toLocaleTimeString();
+        entry.textContent = `[${time}] ${message}`;
+        logBox.appendChild(entry);
+        logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    // Sending mechanism with Rate Limiting
+    btnDisparar.addEventListener('click', async () => {
+        if (!confirm(`Tem certeza que deseja enviar ${validRecords.length} mensagens via WhatsApp? Esta ação não pode ser desfeita.`)) {
+            return;
+        }
+
+        if(CONFIG.SCRIPT_URL === 'SUBSTITUIR_PELA_URL_DO_WEB_APP') {
+            alert('Aviso: O URL do Google Apps Script ainda não foi configurado. As mensagens não serão realmente enviadas, mas o fluxo será simulado no painel.');
+        }
+
+        btnDisparar.setAttribute('disabled', 'disabled');
+        progressSection.classList.remove('hidden');
+        logBox.innerHTML = '';
+
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (let i = 0; i < validRecords.length; i++) {
+            const record = validRecords[i];
+
+            // Update progress
+            const percent = Math.round(((i) / validRecords.length) * 100);
+            progressBar.style.width = `${percent}%`;
+            progressText.textContent = `Enviando ${i + 1} de ${validRecords.length}...`;
+
+            try {
+                // Build payload according to requirements
+                const payload = {
+                    action: "sendMessage",
+                    telefone: record.telefone_whatsapp_limpo,
+                    nome: record.nome_proprietario,
+                    endereco: record.endereco_resumo,
+                    id_imovel: record.id_imovel,
+                    form_url: `${CONFIG.FORM_URL}?id=${record.id_imovel}`
+                };
+
+                addLog(`Enviando para ${record.nome_proprietario} (${record.telefone_whatsapp_limpo})...`, 'info');
+
+                if (CONFIG.SCRIPT_URL !== 'SUBSTITUIR_PELA_URL_DO_WEB_APP') {
+                    // Send request to Apps Script
+                    const response = await fetch(CONFIG.SCRIPT_URL, {
+                        method: 'POST',
+                        mode: 'no-cors', // Important for Apps Script Web App without complex CORS setup
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    // With no-cors, we can't read response body, assume success if no throw
+                }
+
+                successCount++;
+                addLog(`Sucesso: Mensagem enviada para ${record.nome_proprietario}`, 'success');
+
+            } catch (error) {
+                errorCount++;
+                addLog(`Erro ao enviar para ${record.nome_proprietario}: ${error.message}`, 'error');
+            }
+
+            // Rate Limit: 1 message per second (1000ms delay)
+            if (i < validRecords.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        }
+
+        // Finish
+        progressBar.style.width = '100%';
+        progressText.textContent = `Envio concluído: ${successCount} sucesso(s), ${errorCount} erro(s).`;
+        addLog(`=== Processo finalizado com ${successCount} sucesso(s) e ${errorCount} erro(s) ===`, 'info');
+        btnDisparar.textContent = 'Processo Concluído';
+    });
+
+</script>
+</body>
+</html>
