@@ -176,7 +176,7 @@ function enviarMensagemWhatsApp(payload) {
 
   const requestBody = {
     messaging_product: "whatsapp",
-    to: payload.telefone.replace('+', ''), // Remove + for Meta API
+    to: payload.telefone.toString().replace('+', ''), // Remove + for Meta API
     type: "template",
     template: {
       name: CONFIG.WHATSAPP_TEMPLATE,
