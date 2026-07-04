@@ -1,0 +1,4 @@
+id_imovel,endereco_resumo,nome_proprietario,telefone_whatsapp,status_atual,preco_atual,data_ultima_atualizacao
+001,"Rua Congonhas do Norte, 144","João Silva","+5511999999999","Disponível","219000","2026-07-01"
+002,"Rua das Flores, 200","Maria Santos","+5511988888888","Disponível","250000","2026-06-30"
+003,"Av. Paulista, 1000","Pedro Oliveira","+5511977777777","Vendido","350000","2026-06-28"

@@ -1,0 +1,1259 @@
+# 🎯 PROMPT PARA JULES - MVP COMPLETO
+
+## INSTRUÇÕES INICIAIS
+
+Jules, preciso que você crie um MVP completo para automatizar a atualização de carteira imobiliária via WhatsApp. O prazo é 2-3 dias e o custo de infraestrutura deve ser ZERO.
+
+---
+
+## 📋 ESCOPO COMPLETO
+
+### Problema
+Minha esposa trabalha em uma imobiliária e hoje faz manualmente:
+1. Abre planilha de imóveis (CSV/XLSX)
+2. Envia WhatsApp para cada proprietário perguntando disponibilidade
+3. Interpreta respostas ambíguas
+4. Atualiza planilha manualmente
+
+### Solução
+Automatizar passos 2, 3 e 4 com formulário estruturado e integração com WhatsApp.
+
+---
+
+## 🏗️ ARQUITETURA TÉCNICA
+
+### Stack Obrigatória (TUDO GRATUITO)
+- **Frontend**: HTML + CSS + JS Vanilla (hospedado na Vercel ou GitHub Pages)
+- **Backend**: Google Apps Script (serverless, gratuito)
+- **Banco Dados**: Google Sheets (gratuito, visual)
+- **WhatsApp**: Meta Cloud API (1000 conversas/mês gratuitas)
+
+### Estrutura de Arquivos
+/
+├── admin.html # Painel administrativo
+├── form.html # Formulário do proprietário
+├── style.css # Estilos compartilhados
+├── vercel.json # Configuração Vercel (opcional)
+├── Code.gs # Google Apps Script
+├── README.md # Instruções completas
+└── modelo.csv # Arquivo de exemplo
+
+text
+
+---
+
+## 🔧 REQUISITOS DETALHADOS
+
+### 1. admin.html - Painel Administrativo
+
+**Funcionalidades:**
+- [ ] Tela de login com senha (hardcoded: 'imob2026')
+- [ ] Upload de arquivo (CSV/XLSX) com drag & drop
+- [ ] Preview dos dados em tabela (primeiros 20 registros)
+- [ ] Validação de telefone (formato E.164: +5511999999999)
+- [ ] Validação de campos obrigatórios (id_imovel, nome_proprietario, telefone_whatsapp)
+- [ ] Botão "Disparar Mensagens" com confirmação
+- [ ] Barra de progresso em tempo real
+- [ ] Log de envios (sucesso/erro com timestamps)
+- [ ] Resumo final (total/enviados/falhas)
+- [ ] Rate limit: 1 mensagem/segundo
+
+**Design:**
+- [ ] Responsivo (mobile-first)
+- [ ] Cores: #25D366 (WhatsApp), #007bff (ações)
+- [ ] Feedback visual claro
+
+**Configurações (hardcoded):**
+```javascript
+const CONFIG = {
+    SENHA_ADMIN: 'imob2026',
+    SCRIPT_URL: 'URL_DO_APPS_SCRIPT',
+    FORM_URL: 'URL_DO_FORMULARIO',
+    EMPRESA: 'Vitória da União 03'
+};
+2. form.html - Formulário do Proprietário
+Funcionalidades:
+
+Recebe ?id=ID_IMOVEL na URL
+
+Busca dados do imóvel via Google Apps Script
+
+Exibe nome do proprietário e endereço
+
+Opções estruturadas (sem texto livre):
+
+✅ "Sim, está disponível e não houve mudança"
+
+💰 "Sim, está disponível mas alterei o preço"
+
+❌ "Não, o imóvel foi vendido"
+
+🏠 "Não, o imóvel foi alugado"
+
+📞 "Quero falar com um corretor"
+
+Campo numérico para novo preço (aparece só se opção 2 selecionada)
+
+Validação: preço mínimo R$ 1.000
+
+Tela de confirmação após envio
+
+Design:
+
+Centrado e limpo
+
+Cards com hover/selected states
+
+Elementos de toque ≥ 44px (mobile)
+
+Cores consistentes com admin
+
+3. Google Apps Script (Code.gs)
+Endpoints:
+
+GET - Buscar dados do imóvel
+javascript
+GET ?action=getImovel&id=ID_IMOVEL
+Response: {
+  success: true,
+  nome_proprietario: "João Silva",
+  endereco_resumo: "Rua Congonhas do Norte, 144",
+  preco_atual: 219000
+}
+POST - Enviar mensagem WhatsApp
+javascript
+POST /
+Payload: {
+  action: "sendMessage",
+  telefone: "+5511999999999",
+  nome: "João Silva",
+  endereco: "Rua Congonhas do Norte, 144",
+  id_imovel: "001",
+  form_url: "https://.../form.html?id=001"
+}
+POST - Salvar resposta
+javascript
+POST /
+Payload: {
+  action: "saveResponse",
+  id_imovel: "001",
+  status: "disponivel",
+  novo_preco: 250000,
+  data_resposta: "2026-07-02T17:30:00Z"
+}
+Configurações:
+
+javascript
+const CONFIG = {
+    SPREADSHEET_ID: 'ID_DA_PLANILHA',
+    SHEET_NAME: 'Respostas',
+    WHATSAPP_TOKEN: 'SEU_TOKEN',
+    WHATSAPP_PHONE_ID: 'SEU_PHONE_ID',
+    WHATSAPP_TEMPLATE: 'atualizacao_carteira'
+};
+Tratamento de Erros:
+
+Try/catch em todas as funções
+
+Log detalhado para debug
+
+Respostas padronizadas: { success: boolean, error?: string }
+
+MuteHttpExceptions para API WhatsApp
+
+4. Google Sheets - Estrutura
+Aba "Imóveis" (Dados Principais)
+Coluna	Tipo	Obrigatório
+id_imovel	Texto	✅
+endereco_resumo	Texto	✅
+nome_proprietario	Texto	✅
+telefone_whatsapp	Texto	✅
+status_atual	Texto	✅
+preco_atual	Número	✅
+data_ultima_atualizacao	Data	❌
+Aba "Respostas" (Histórico)
+Coluna	Tipo
+id_imovel	Texto
+nome_proprietario	Texto
+telefone	Texto
+status_anterior	Texto
+novo_status	Texto
+novo_preco	Número
+data_resposta	Data
+link_form	Texto
+Aba "Logs" (Auditoria)
+Coluna	Tipo
+timestamp	Data
+telefone	Texto
+nome	Texto
+status	Texto
+detalhe	Texto
+5. WhatsApp Cloud API
+Pré-requisitos:
+
+Conta Meta for Developers
+
+App Business criado
+
+Número de telefone verificado
+
+Access Token gerado
+
+Phone Number ID obtido
+
+Template de Mensagem:
+
+text
+Nome: atualizacao_carteira
+Categoria: Utility
+Idioma: pt_BR
+
+Corpo:
+"Olá {{1}}! A Vitória da União 03 está atualizando a carteira. 
+Seu imóvel {{2}} ainda está disponível? 
+Confirme aqui: {{3}}"
+
+Parâmetros:
+{{1}} = Nome do proprietário
+{{2}} = Endereço resumido
+{{3}} = Link do formulário (?id=ID_IMOVEL)
+Endpoint:
+
+text
+POST https://graph.facebook.com/v18.0/{PHONE_ID}/messages
+Headers:
+  Authorization: Bearer {TOKEN}
+  Content-Type: application/json
+📅 CRONOGRAMA DE IMPLEMENTAÇÃO
+Dia 1 (Manhã) - Configuração Base
+Criar conta Google e planilha com 3 abas
+
+Configurar Google Apps Script
+
+Inserir código do Code.gs
+
+Publicar como Web App
+
+Testar endpoints
+
+Dia 1 (Tarde) - WhatsApp API
+Criar conta Meta for Developers
+
+Criar app Business
+
+Configurar número de telefone
+
+Obter token e phone ID
+
+Criar e aprovar template
+
+Testar envio manual
+
+Dia 2 - Frontend
+Criar admin.html (login + upload + preview + disparo)
+
+Criar form.html (dados + opções + envio)
+
+Deploy no GitHub Pages ou Vercel
+
+Dia 3 (Manhã) - Integração
+Conectar frontend com Apps Script
+
+Testar fluxo completo com 3 imóveis
+
+Validar logs no Google Sheets
+
+Ajustar rate limits
+
+Dia 3 (Tarde) - Entrega
+Revisar README.md
+
+Documentar configurações
+
+Entregar arquivos finais
+
+✅ TESTES DE ACEITE
+Fluxo Principal
+Admin faz login
+
+Upload planilha válida
+
+Disparo de mensagens
+
+Proprietário recebe WhatsApp
+
+Proprietário preenche formulário
+
+Resposta registrada na planilha
+
+Status atualizado
+
+Tratamento de Erros
+Telefone inválido → Log de erro
+
+API WhatsApp falha → Log de erro
+
+Formulário sem ID → Mensagem de erro
+
+ID não encontrado → Mensagem de erro
+
+📦 ENTREGÁVEIS
+Arquivos Obrigatórios
+admin.html - Painel administrativo (código completo)
+
+form.html - Formulário do proprietário (código completo)
+
+Code.gs - Google Apps Script (código completo)
+
+README.md - Instruções detalhadas
+
+modelo.csv - Arquivo de exemplo
+
+Documentação
+README.md com passo a passo
+
+Guia de configuração do WhatsApp
+
+Guia de configuração do Google Sheets
+
+Troubleshooting
+
+🎯 CRITÉRIOS DE ACEITE
+Funcional
+Upload de planilha funciona
+
+Preview mostra dados validados
+
+Sistema envia mensagens WhatsApp
+
+Proprietário recebe formulário
+
+Respostas registradas no Google Sheets
+
+Status dos imóveis atualizado
+
+Técnico
+Código sem erros
+
+Responsivo (mobile)
+
+Custo mensal: R$ 0
+
+Configurável via variáveis
+
+Logs para debug
+
+Usabilidade
+Interface intuitiva
+
+Feedback visual claro
+
+Progresso visível
+
+Mensagens de erro amigáveis
+
+📝 MODELO DE CSV
+csv
+id_imovel,endereco_resumo,nome_proprietario,telefone_whatsapp,status_atual,preco_atual,data_ultima_atualizacao
+001,"Rua Congonhas do Norte, 144","João Silva","+5511999999999","Disponível","219000","2026-07-01"
+002,"Rua das Flores, 200","Maria Santos","+5511988888888","Disponível","250000","2026-06-30"
+003,"Av. Paulista, 1000","Pedro Oliveira","+5511977777777","Vendido","350000","2026-06-28"
+🔗 LINKS ÚTEIS
+Meta for Developers
+
+WhatsApp Cloud API Docs
+
+Google Apps Script
+
+Google Sheets API
+
+GitHub Pages
+
+Vercel
+
+⚠️ RESTRIÇÕES IMPORTANTES
+NÃO usar: Node.js complexo, PostgreSQL, MongoDB, Docker
+
+NÃO pagar: Nada, tudo gratuito
+
+NÃO usar IA: Formulário estruturado, sem ambiguidade
+
+NÃO usar JWT: Apenas senha simples
+
+NÃO fazer multi-tenant: Uma imobiliária por vez
+
+💬 FORMATO DE RESPOSTA ESPERADO
+Jules, quero que você entregue:
+
+Código completo de todos os arquivos
+
+Instruções claras de configuração
+
+README.md com passo a passo
+
+Links para os serviços configurados
+
+Print ou vídeo do funcionamento
+
+🚀 PRONTO PARA COMEÇAR
+Jules, este é o escopo completo. Implemente tudo conforme especificado, mantendo o código limpo, comentado e bem organizado. O prazo é 2-3 dias, mas quanto mais rápido, melhor.
+
+Qualquer dúvida, me consulte antes de desviar do escopo.
+
+Data: 03/07/2026
+Versão: 1.0
+Status: ✅ Pronto para Implementação
+
+Preparado para implementação imediata. 🚀
+
+text
+Me sugira um nome para repositorio github.
+🏷️ Sugestões de Nomes para o Repositório GitHub
+Recomendados (Escolha um)
+Opção 1: Descritivo e Profissional
+text
+carteira-imobiliaria-whatsapp
+✅ Claro, objetivo, fácil de lembrar
+
+Opção 2: Mais Específico
+text
+atualizacao-carteira-imobiliaria
+✅ Foca na funcionalidade principal
+
+Opção 3: Curto e Direto
+text
+imovel-whatsapp-updater
+✅ Inglês, padrão internacional
+
+Opção 4: Com Nome da Imobiliária
+text
+vitoria-uniao-carteira
+✅ Personalizado para o negócio
+
+Opção 5: MVP
+text
+mvp-carteira-imobiliaria
+✅ Deixa claro que é um MVP
+
+🎨 Sugestões Criativas
+Em Português
+carteira-imobiliaria-automatica
+
+whatsapp-carteira-updater
+
+imoveis-whatsapp-sync
+
+atualizacao-disponibilidade
+
+gestao-carteira-imoveis
+
+Em Inglês
+real-estate-whatsapp-updater
+
+property-portfolio-whatsapp
+
+realty-whatsapp-automation
+
+property-status-updater
+
+real-estate-crm-whatsapp
+
+Nomes Engraçados (opcionais)
+nao-vendi-ainda
+
+whatsapp-do-corretor
+
+imovel-disponivel-sim
+
+proprietario-responsa
+
+📝 Estrutura Recomendada
+Para README.md do Repositório
+markdown
+# 🏠 Carteira Imobiliária - Atualização via WhatsApp
+
+Sistema MVP para automatizar a atualização de disponibilidade de imóveis via WhatsApp.
+
+## 🚀 Tecnologias
+- Frontend: HTML + CSS + JS (Vercel/GitHub Pages)
+- Backend: Google Apps Script
+- Banco: Google Sheets
+- WhatsApp: Meta Cloud API
+
+## 📋 Funcionalidades
+- Upload de planilha CSV/XLSX
+- Disparo automático de mensagens WhatsApp
+- Formulário estruturado para proprietários
+- Registro automático no Google Sheets
+- Logs completos de auditoria
+
+## 🔧 Como Usar
+[Instruções detalhadas...]
+
+## 📄 Licença
+MIT
+🎯 Minha Recomendação Final
+Escolha: carteira-imobiliaria-whatsapp
+Motivos:
+
+✅ Claro - Qualquer um sabe o que é
+
+✅ Português - Time local entende
+
+✅ Profissional - Para apresentar para clientes
+
+✅ Fácil de lembrar - Nome direto
+
+✅ SEO amigável - Aparece em buscas
+
+URL Final
+text
+https://github.com/SEU_USUARIO/carteira-imobiliaria-whatsapp
+🔧 Como Criar o Repositório
+Via GitHub Web
+Acesse https://github.com/new
+
+Nome: carteira-imobiliaria-whatsapp
+
+Descrição: MVP para atualização automática de carteira imobiliária via WhatsApp
+
+Publico ou Privado (escolha)
+
+Add README (opcional)
+
+Clique em "Create repository"
+
+Via CLI
+bash
+# Criar localmente
+mkdir carteira-imobiliaria-whatsapp
+cd carteira-imobiliaria-whatsapp
+git init
+
+# Criar no GitHub (via gh)
+gh repo create carteira-imobiliaria-whatsapp --public --description "MVP para atualização automática de carteira imobiliária via WhatsApp"
+
+# Conectar e push
+git remote add origin https://github.com/SEU_USUARIO/carteira-imobiliaria-whatsapp.git
+git add .
+git commit -m "Initial commit"
+git push -u origin main
+📦 Estrutura Inicial do Repositório
+text
+carteira-imobiliaria-whatsapp/
+├── admin.html
+├── form.html
+├── style.css
+├── Code.gs
+├── README.md
+├── LICENSE
+├── .gitignore
+├── modelo.csv
+└── vercel.json (opcional)
+🏷️ Tags para o Repositório
+Adicione estas tags para melhor visibilidade:
+
+whatsapp-api
+
+google-apps-script
+
+google-sheets
+
+real-estate
+
+crm
+
+automation
+
+mvp
+
+imobiliaria
+
+Nome escolhido: carteira-imobiliaria-whatsapp ✅
+
+Pronto para criar o repositório e começar! 🚀
+
+Passe todos os dados para criar o repositorio.
+📦 Configuração Completa do Repositório GitHub
+1. Informações do Repositório
+Dados Básicos
+text
+Nome do Repositório: carteira-imobiliaria-whatsapp
+Descrição: MVP para automatizar atualização de disponibilidade de imóveis via WhatsApp com custo zero
+URL: https://github.com/[SEU_USUARIO]/carteira-imobiliaria-whatsapp
+Visibilidade: Público (ou Privado)
+Tags (Topics)
+text
+whatsapp-api, google-apps-script, google-sheets, real-estate, crm, automation, mvp, imobiliaria, whatsapp, propriedades
+2. README.md Completo
+markdown
+# 🏠 Carteira Imobiliária - Atualização via WhatsApp
+
+[![Status](https://img.shields.io/badge/Status-Em%20Desenvolvimento-yellow)]()
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)]()
+[![WhatsApp](https://img.shields.io/badge/WhatsApp-API-25D366)]()
+
+Sistema MVP para automatizar a atualização de disponibilidade de imóveis via WhatsApp com **custo zero** de infraestrutura.
+
+## 📋 Visão Geral
+
+Minha esposa trabalha em uma imobiliária e hoje faz manualmente:
+1. Abre a planilha de imóveis (CSV/XLSX)
+2. Envia WhatsApp para cada proprietário
+3. Interpreta respostas ambíguas
+4. Atualiza a planilha manualmente
+
+**Este sistema automatiza os passos 2, 3 e 4!**
+
+## 🚀 Tecnologias
+
+| Tecnologia | Uso | Custo |
+|------------|-----|-------|
+| **HTML + CSS + JS** | Frontend | ✅ R$ 0 |
+| **GitHub Pages / Vercel** | Hospedagem | ✅ R$ 0 |
+| **Google Apps Script** | Backend Serverless | ✅ R$ 0 |
+| **Google Sheets** | Banco de Dados | ✅ R$ 0 |
+| **WhatsApp Cloud API** | Mensagens | ✅ R$ 0 (1k msgs/mês) |
+
+## ✨ Funcionalidades
+
+### Painel Administrativo (admin.html)
+- ✅ Login com senha
+- ✅ Upload CSV/XLSX (drag & drop)
+- ✅ Preview dos dados
+- ✅ Validação de telefones
+- ✅ Disparo automático de mensagens
+- ✅ Barra de progresso em tempo real
+- ✅ Logs completos de envio
+
+### Formulário do Proprietário (form.html)
+- ✅ Link personalizado por imóvel
+- ✅ Opções estruturadas (sem ambiguidade)
+- ✅ Campo condicional para novo preço
+- ✅ Confirmação após envio
+- ✅ Design responsivo (mobile-first)
+
+### Google Apps Script (Code.gs)
+- ✅ Busca dados do imóvel
+- ✅ Envio de mensagens WhatsApp
+- ✅ Registro de respostas
+- ✅ Atualização de status
+- ✅ Logs de auditoria
+
+### Google Sheets
+- ✅ Aba "Imóveis" (dados principais)
+- ✅ Aba "Respostas" (histórico)
+- ✅ Aba "Logs" (auditoria)
+
+## 📦 Estrutura do Projeto
+carteira-imobiliaria-whatsapp/
+├── admin.html # Painel administrativo
+├── form.html # Formulário do proprietário
+├── style.css # Estilos compartilhados
+├── Code.gs # Google Apps Script
+├── README.md # Instruções completas
+├── modelo.csv # Arquivo de exemplo
+├── .gitignore # Arquivos ignorados
+└── vercel.json # Configuração Vercel (opcional)
+
+text
+
+## 🔧 Configuração Rápida
+
+### 1. Google Sheets
+1. Crie uma planilha com 3 abas: `Imóveis`, `Respostas`, `Logs`
+2. Configure as colunas conforme especificação
+
+### 2. Google Apps Script
+1. Acesse: `Extensions > Apps Script`
+2. Cole o código do `Code.gs`
+3. Configure as variáveis no topo
+4. Publique como Web App
+
+### 3. WhatsApp Cloud API
+1. Crie conta no Meta for Developers
+2. Crie um app Business
+3. Configure número de telefone
+4. Obtenha Access Token e Phone ID
+5. Crie o template de mensagem
+
+### 4. Hospedagem
+
+#### Opção A: GitHub Pages
+1. Fork este repositório
+2. Vá em `Settings > Pages`
+3. Selecione `main` branch e `/root`
+4. Acesse: `https://[SEU_USER].github.io/carteira-imobiliaria-whatsapp`
+
+#### Opção B: Vercel (Recomendado)
+1. Instale Vercel CLI: `npm i -g vercel`
+2. Execute: `vercel --prod`
+3. Configure variáveis de ambiente
+
+## 📊 Fluxo de Dados
+[Admin] → Upload CSV → [Google Apps Script] → [WhatsApp API] → [Proprietário]
+↓
+[Proprietário] → Formulário → [Google Apps Script] → [Google Sheets]
+↓
+[Admin] ← Consulta Planilha ← [Google Sheets]
+
+text
+
+## 📝 Modelo de CSV
+
+```csv
+id_imovel,endereco_resumo,nome_proprietario,telefone_whatsapp,status_atual,preco_atual,data_ultima_atualizacao
+001,"Rua Congonhas do Norte, 144","João Silva","+5511999999999","Disponível","219000","2026-07-01"
+002,"Rua das Flores, 200","Maria Santos","+5511988888888","Disponível","250000","2026-06-30"
+🧪 Testes
+Fluxo Principal
+Admin faz login
+
+Upload planilha válida
+
+Disparo de mensagens
+
+Proprietário recebe WhatsApp
+
+Proprietário preenche formulário
+
+Resposta registrada na planilha
+
+Status atualizado
+
+Tratamento de Erros
+Telefone inválido → Log de erro
+
+API WhatsApp falha → Log de erro
+
+Formulário sem ID → Mensagem de erro
+
+ID não encontrado → Mensagem de erro
+
+📈 Métricas
+Métrica	Valor
+Tempo de Upload	< 2s para 1000 registros
+Disparo	1 msg/segundo (configurável)
+Carregamento Form	< 1s
+Envio Resposta	< 2s
+Custo Mensal	R$ 0
+🔒 Segurança
+Aspecto	Medida
+Admin	Senha estática (alterável)
+WhatsApp	Token via Apps Script
+CORS	Habilitado no Apps Script
+HTTPS	Automático (Vercel/GitHub)
+🚀 Próximos Passos (Pós-MVP)
+Dashboard com métricas
+
+Agendamento de envios
+
+Respostas com IA (NLP)
+
+Múltiplas imobiliárias
+
+Relatórios semanais
+
+Lembretes automáticos
+
+🤝 Contribuição
+Contribuições são bem-vindas! Siga os passos:
+
+Fork este repositório
+
+Crie uma branch: git checkout -b feature/nova-funcionalidade
+
+Commit suas mudanças: git commit -m 'Adiciona nova funcionalidade'
+
+Push: git push origin feature/nova-funcionalidade
+
+Abra um Pull Request
+
+📄 Licença
+Este projeto está sob licença MIT. Veja o arquivo LICENSE para mais detalhes.
+
+👤 Autor
+[Seu Nome]
+
+GitHub: @seu-user
+
+LinkedIn: Seu LinkedIn
+
+🙏 Agradecimentos
+Meta for Developers (WhatsApp API)
+
+Google (Apps Script, Sheets)
+
+Vercel (Hospedagem)
+
+GitHub (Hospedagem e Versionamento)
+
+Desenvolvido com ❤️ para automatizar a vida do corretor de imóveis
+
+text
+
+---
+
+## 3. .gitignore
+
+```gitignore
+# Dependências
+node_modules/
+package-lock.json
+yarn.lock
+
+# Arquivos de ambiente
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db
+*.tmp
+*.temp
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build
+dist/
+build/
+out/
+.next/
+
+# Arquivos sensíveis
+*.pem
+*.key
+*.crt
+*.p12
+
+# Vercel
+.vercel/
+
+# Google Apps Script (backup)
+*.gs.backup
+
+# Planilhas temporárias
+*.tmp.csv
+*.tmp.xlsx
+4. LICENSE (MIT)
+markdown
+MIT License
+
+Copyright (c) 2026 [Seu Nome]
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+5. vercel.json (Opcional)
+json
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "*.html",
+      "use": "@vercel/static-build"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/",
+      "dest": "/admin.html"
+    },
+    {
+      "src": "/admin",
+      "dest": "/admin.html"
+    },
+    {
+      "src": "/form",
+      "dest": "/form.html"
+    }
+  ]
+}
+6. package.json (Opcional - para Vercel)
+json
+{
+  "name": "carteira-imobiliaria-whatsapp",
+  "version": "1.0.0",
+  "description": "MVP para automatizar atualização de disponibilidade de imóveis via WhatsApp",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod",
+    "start": "vercel dev"
+  },
+  "keywords": [
+    "whatsapp",
+    "real-estate",
+    "crm",
+    "automation",
+    "google-sheets",
+    "imobiliaria"
+  ],
+  "author": "[Seu Nome]",
+  "license": "MIT",
+  "devDependencies": {
+    "vercel": "^30.0.0"
+  }
+}
+7. Como Criar o Repositório Passo a Passo
+Via GitHub Web (Mais Fácil)
+Acesse: https://github.com/new
+
+Preencha:
+
+text
+Repository name: carteira-imobiliaria-whatsapp
+Description: MVP para automatizar atualização de disponibilidade de imóveis via WhatsApp com custo zero
+Public/Private: Público (recomendado) ou Privado
+Initialize with README: ✅ (marque)
+Clique em: "Create repository"
+
+Adicione os arquivos:
+
+bash
+# Clone o repositório
+git clone https://github.com/[SEU_USUARIO]/carteira-imobiliaria-whatsapp.git
+cd carteira-imobiliaria-whatsapp
+
+# Adicione todos os arquivos do projeto
+# (admin.html, form.html, Code.gs, etc.)
+
+# Commit e Push
+git add .
+git commit -m "Adiciona código fonte do MVP"
+git push origin main
+Adicione Topics (Tags):
+
+No repositório, clique em ⚙️ "Settings"
+
+Vá em "Topics" (lado direito)
+
+Adicione: whatsapp-api, google-apps-script, google-sheets, real-estate, automation, mvp
+
+Via CLI (Git + GitHub CLI)
+bash
+# 1. Instale GitHub CLI
+brew install gh  # macOS
+# ou
+winget install --id GitHub.cli  # Windows
+
+# 2. Autentique
+gh auth login
+
+# 3. Crie o repositório
+gh repo create carteira-imobiliaria-whatsapp \
+  --public \
+  --description "MVP para automatizar atualização de disponibilidade de imóveis via WhatsApp com custo zero" \
+  --clone
+
+# 4. Entre na pasta
+cd carteira-imobiliaria-whatsapp
+
+# 5. Adicione os arquivos
+# (copie todos os arquivos do projeto)
+
+# 6. Commit e Push
+git add .
+git commit -m "Primeiro commit - MVP Carteira Imobiliária"
+git push -u origin main
+8. Configurações Adicionais do Repositório
+GitHub Pages (Hospedagem)
+Vá em Settings > Pages
+
+Source: Deploy from a branch
+
+Branch: main / /(root)
+
+Clique em "Save"
+
+URL: https://[SEU_USER].github.io/carteira-imobiliaria-whatsapp/
+
+Branches Protection (Opcional)
+Vá em Settings > Branches
+
+Adicione regra para main
+
+Marque: "Require pull request reviews"
+
+Marque: "Require status checks"
+
+Collaborators (Opcional)
+Vá em Settings > Collaborators
+
+Clique em "Add people"
+
+Adicione os colaboradores
+
+9. Links de Acesso
+Repositório
+text
+https://github.com/[SEU_USUARIO]/carteira-imobiliaria-whatsapp
+Páginas
+text
+https://[SEU_USUARIO].github.io/carteira-imobiliaria-whatsapp/admin.html
+https://[SEU_USUARIO].github.io/carteira-imobiliaria-whatsapp/form.html
+Vercel (se usar)
+text
+https://carteira-imobiliaria-whatsapp.vercel.app/
+10. Badges para o README
+Adicione estas badges no topo do README:
+
+markdown
+[![Status](https://img.shields.io/badge/Status-Em%20Desenvolvimento-yellow)]()
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![WhatsApp](https://img.shields.io/badge/WhatsApp-API-25D366)]()
+[![Google Apps Script](https://img.shields.io/badge/Google%20Apps%20Script-Serverless-4285F4)]()
+[![Vercel](https://img.shields.io/badge/Vercel-Hospedagem-000000)]()
+[![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Hospedagem-222222)]()
+✅ Checklist de Criação do Repositório
+Nome: carteira-imobiliaria-whatsapp
+
+Descrição: MVP para automatizar atualização de disponibilidade de imóveis via WhatsApp com custo zero
+
+Visibilidade: Público (recomendado)
+
+README.md criado
+
+.gitignore adicionado
+
+LICENSE (MIT) adicionado
+
+Código fonte adicionado (admin.html, form.html, Code.gs)
+
+GitHub Pages configurado
+
+Topics adicionados
+
+README atualizado com todas as seções
+
+Primeiro commit feito
+
+Repositório pronto para uso! 🚀
+
+Próximo passo: Copiar todos os arquivos para dentro do repositório e fazer commit.
+
+✅ Configuração do Repositório - Pronto para Criar
+📋 Dados para Preenchimento
+Informações Principais
+text
+Owner: luisbrant ✅ (seu usuário)
+Repository name: carteira-imobiliaria-automatica ✅
+Description: MVP para automatizar atualização de disponibilidade de imóveis via WhatsApp com custo zero
+Visibility: Public ✅
+Opções Adicionais (Recomendado mudar)
+text
+✅ Add README: ON (marque esta opção)
+✅ Add .gitignore: Node (selecione "Node" no dropdown)
+✅ Add license: MIT License (selecione "MIT License" no dropdown)
+📝 Descrição Completa
+Copie e cole esta descrição no campo "Description":
+
+text
+MVP para automatizar atualização de disponibilidade de imóveis via WhatsApp com custo zero
+🎯 Nome Escolhido: carteira-imobiliaria-automatica
+✅ Motivos da Escolha
+Português claro - Time local entende
+
+Descritivo - Sabe exatamente o que é
+
+Profissional - Apresentável para clientes
+
+Disponível - Confirmado pelo GitHub
+
+Memorável - Fácil de lembrar
+
+🌐 URL Final
+text
+https://github.com/luisbrant/carteira-imobiliaria-automatica
+📁 Estrutura do Repositório (Após Criar)
+text
+carteira-imobiliaria-automatica/
+├── admin.html              # Painel administrativo
+├── form.html               # Formulário do proprietário
+├── style.css               # Estilos compartilhados
+├── Code.gs                 # Google Apps Script
+├── README.md               # Já criado pelo GitHub
+├── LICENSE                 # Já criado pelo GitHub
+├── .gitignore              # Já criado pelo GitHub
+├── modelo.csv              # Arquivo de exemplo
+└── vercel.json             # Configuração Vercel (opcional)
+🔧 Passos Após Criar o Repositório
+1. Clone o Repositório
+bash
+git clone https://github.com/luisbrant/carteira-imobiliaria-automatica.git
+cd carteira-imobiliaria-automatica
+2. Adicione os Arquivos do Projeto
+Crie/adicione estes arquivos na pasta:
+
+admin.html
+html
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Carteira Imobiliária</title>
+    <!-- Cole o código completo do admin.html fornecido anteriormente -->
+</head>
+<body>
+    <!-- Cole o conteúdo completo -->
+</body>
+</html>
+form.html
+html
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atualização de Disponibilidade</title>
+    <!-- Cole o código completo do form.html fornecido anteriormente -->
+</head>
+<body>
+    <!-- Cole o conteúdo completo -->
+</body>
+</html>
+Code.gs
+javascript
+// Cole o código completo do Google Apps Script
+modelo.csv
+csv
+id_imovel,endereco_resumo,nome_proprietario,telefone_whatsapp,status_atual,preco_atual,data_ultima_atualizacao
+001,"Rua Congonhas do Norte, 144","João Silva","+5511999999999","Disponível","219000","2026-07-01"
+002,"Rua das Flores, 200","Maria Santos","+5511988888888","Disponível","250000","2026-06-30"
+003,"Av. Paulista, 1000","Pedro Oliveira","+5511977777777","Vendido","350000","2026-06-28"
+3. Commit e Push
+bash
+# Adiciona todos os arquivos
+git add .
+
+# Commit com mensagem descritiva
+git commit -m "Adiciona código fonte do MVP
+
+- admin.html: Painel administrativo com upload e disparo
+- form.html: Formulário estruturado para proprietários
+- Code.gs: Google Apps Script para backend
+- modelo.csv: Exemplo de dados"
+
+# Push para o GitHub
+git push origin main
+🌐 Configurar GitHub Pages
+Ativar GitHub Pages
+No repositório, vá em Settings
+
+No menu lateral, clique em Pages
+
+Em "Branch", selecione main
+
+Em "Folder", selecione /(root)
+
+Clique em "Save"
+
+URL de Acesso
+text
+https://luisbrant.github.io/carteira-imobiliaria-automatica/
+Páginas Específicas
+text
+Admin: https://luisbrant.github.io/carteira-imobiliaria-automatica/admin.html
+Formulário: https://luisbrant.github.io/carteira-imobiliaria-automatica/form.html
+🏷️ Topics (Tags) para Adicionar
+Após criar o repositório, adicione estas tags:
+
+Vá em https://github.com/luisbrant/carteira-imobiliaria-automatica
+
+Clique no ícone ⚙️ (Settings) ou vá em "Manage topics"
+
+Adicione:
+
+text
+whatsapp-api
+google-apps-script
+google-sheets
+real-estate
+crm
+automation
+mvp
+imobiliaria
+whatsapp
+propriedades
+📋 Badges para README
+Adicione estes badges no topo do README.md:
+
+markdown
+[![Status](https://img.shields.io/badge/Status-Em%20Desenvolvimento-yellow)]()
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![WhatsApp](https://img.shields.io/badge/WhatsApp-API-25D366)]()
+[![Google Apps Script](https://img.shields.io/badge/Google%20Apps%20Script-Serverless-4285F4)]()
+[![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Hospedagem-222222)]()
+[![Vercel](https://img.shields.io/badge/Vercel-Opcional-000000)]()
+✅ Checklist Final
+Imediato (Antes de Criar)
+Nome: carteira-imobiliaria-automatica
+
+Descrição definida
+
+Visibilidade: Public
+
+~~Add README: ON~~ ✅ MARQUE ESTA OPÇÃO
+
+~~Add .gitignore: Node~~ ✅ SELECIONE "Node"
+
+~~Add license: MIT License~~ ✅ SELECIONE "MIT License"
+
+Após Criar
+Clonar repositório
+
+Adicionar admin.html
+
+Adicionar form.html
+
+Adicionar Code.gs
+
+Adicionar modelo.csv
+
+Adicionar vercel.json (opcional)
+
+Atualizar README.md com conteúdo completo
+
+Commit e Push
+
+Configurar GitHub Pages
+
+Adicionar Topics
+
+🚀 Pronto para Criar!
+Resumo para o Botão "Create repository"
+text
+Nome: carteira-imobiliaria-automatica
+Descrição: MVP para automatizar atualização de disponibilidade de imóveis via WhatsApp com custo zero
+Visibilidade: Public
+README: ✅ ON (marque)
+.gitignore: ✅ Node (selecione)
+License: ✅ MIT License (selecione)
+Clique em "Create repository" e depois siga os passos acima para adicionar os arquivos! 🎉
+

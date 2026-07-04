@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atualização de Disponibilidade - Imóvel</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .loading-screen {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        .spinner {
+            border: 4px solid rgba(0,0,0,0.1);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border-left-color: var(--wa-color);
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .imovel-info {
+            background-color: #f1f8ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--action-color);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    
+    <div id="loading" class="card loading-screen">
+        <div class="spinner"></div>
+        <p>Buscando informações do seu imóvel...</p>
+    </div>
+
+    <div id="error-message" class="card hidden text-center" style="border-top: 4px solid var(--danger-color);">
+        <h2>Ops!</h2>
+        <p id="error-text">Não foi possível carregar as informações.</p>
+    </div>
+
+    <div id="form-content" class="card hidden">
+        <h2 class="text-center">Atualização de Imóvel</h2>
+        <p class="text-center" style="margin-bottom: 20px;">Olá <strong id="proprietario-nome"></strong>, confirme o status atual do seu imóvel.</p>
+        
+        <div class="imovel-info">
+            <p><strong>Endereço:</strong> <span id="imovel-endereco"></span></p>
+            <p><strong>Valor Atual:</strong> R$ <span id="imovel-preco"></span></p>
+        </div>
+
+        <form id="update-form">
+            <input type="hidden" id="imovel-id" value="">
+            
+            <h3>Selecione o status atual:</h3>
+            
+            <label class="option-card" id="opt-disponivel">
+                <input type="radio" name="status" value="disponivel">
+                <span class="option-icon">✅</span>
+                <span class="option-text">Sim, está disponível e não houve mudança</span>
+            </label>
+
+            <label class="option-card" id="opt-alterou">
+                <input type="radio" name="status" value="alterou_preco">
+                <span class="option-icon">💰</span>
+                <span class="option-text">Sim, está disponível mas alterei o preço</span>
+            </label>
+
+            <div id="price-input-container" class="form-group hidden" style="padding-left: 40px; margin-top: -5px; margin-bottom: 15px;">
+                <label for="novo_preco">Novo Valor (R$)</label>
+                <input type="number" id="novo_preco" class="form-control" min="1000" placeholder="Ex: 250000">
+                <small style="color: #666;">Valor mínimo: R$ 1.000</small>
+            </div>
+
+            <label class="option-card" id="opt-vendido">
+                <input type="radio" name="status" value="vendido">
+                <span class="option-icon">❌</span>
+                <span class="option-text">Não, o imóvel foi vendido</span>
+            </label>
+
+            <label class="option-card" id="opt-alugado">
+                <input type="radio" name="status" value="alugado">
+                <span class="option-icon">🏠</span>
+                <span class="option-text">Não, o imóvel foi alugado</span>
+            </label>
+
+            <label class="option-card" id="opt-corretor">
+                <input type="radio" name="status" value="falar_corretor">
+                <span class="option-icon">📞</span>
+                <span class="option-text">Quero falar com um corretor</span>
+            </label>
+
+            <button type="submit" id="btn-submit" class="btn btn-whatsapp" style="margin-top: 20px;" disabled>Confirmar Atualização</button>
+        </form>
+    </div>
+
+    <div id="success-message" class="card hidden text-center" style="border-top: 4px solid var(--wa-color);">
+        <div style="font-size: 48px; margin-bottom: 10px;">✅</div>
+        <h2>Obrigado!</h2>
+        <p>A situação do seu imóvel foi atualizada com sucesso em nosso sistema.</p>
+    </div>
+
+</div>
+
+<script>
+    // Configuration
+    const CONFIG = {
+        SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbw9DGxTBSgSlN6CUl8n9FnsbIo46pN8lqWGewLGQT4eclOwjfO01wKJx79YHc1cAqUdfw/exec'
+    };
+
+    // Elements
+    const loadingDiv = document.getElementById('loading');
+    const formContent = document.getElementById('form-content');
+    const errorMessage = document.getElementById('error-message');
+    const errorText = document.getElementById('error-text');
+    const successMessage = document.getElementById('success-message');
+    
+    const propNome = document.getElementById('proprietario-nome');
+    const imovelEndereco = document.getElementById('imovel-endereco');
+    const imovelPreco = document.getElementById('imovel-preco');
+    const imovelId = document.getElementById('imovel-id');
+    
+    const priceContainer = document.getElementById('price-input-container');
+    const novoPrecoInput = document.getElementById('novo_preco');
+    const btnSubmit = document.getElementById('btn-submit');
+    const form = document.getElementById('update-form');
+
+    // Get ID from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const idParam = urlParams.get('id');
+
+    async function init() {
+        if (!idParam) {
+            showError("Nenhum imóvel selecionado. O link pode estar quebrado.");
+            return;
+        }
+
+        if (CONFIG.SCRIPT_URL === 'SUBSTITUIR_PELA_URL_DO_WEB_APP' || !CONFIG.SCRIPT_URL) {
+            // Mock mode for local testing without Apps Script
+            setTimeout(() => {
+                populateData({
+                    success: true,
+                    nome_proprietario: "João Silva",
+                    endereco_resumo: "Rua Congonhas do Norte, 144",
+                    preco_atual: "219000"
+                });
+            }, 1000);
+            return;
+        }
+
+        try {
+            // Fetch property data from Google Apps Script
+            // Note: Since Apps Script GET might cause CORS issues, we might use JSONP in a real scenario,
+            // but fetch is standard. Using GET with script URL.
+            const response = await fetch(`${CONFIG.SCRIPT_URL}?action=getImovel&id=${idParam}`);
+            const data = await response.json();
+
+            if (data.success) {
+                populateData(data);
+            } else {
+                showError("Imóvel não encontrado em nosso sistema.");
+            }
+        } catch (error) {
+            console.error(error);
+            // Fallback for CORS issues during dev
+            showError("Erro ao conectar com o servidor. Tente novamente mais tarde.");
+        }
+    }
+
+    function populateData(data) {
+        propNome.textContent = data.nome_proprietario;
+        imovelEndereco.textContent = data.endereco_resumo;
+        
+        // Format price
+        const price = Number(data.preco_atual);
+        imovelPreco.textContent = isNaN(price) ? data.preco_atual : price.toLocaleString('pt-BR');
+        
+        imovelId.value = idParam;
+        
+        loadingDiv.classList.add('hidden');
+        formContent.classList.remove('hidden');
+    }
+
+    function showError(msg) {
+        errorText.textContent = msg;
+        loadingDiv.classList.add('hidden');
+        errorMessage.classList.remove('hidden');
+    }
+
+    // Option selection handling
+    const radioInputs = document.querySelectorAll('input[name="status"]');
+    const optionCards = document.querySelectorAll('.option-card');
+
+    radioInputs.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            // Enable submit
+            btnSubmit.removeAttribute('disabled');
+            
+            // Remove selected class from all
+            optionCards.forEach(card => card.classList.remove('selected'));
+            
+            // Add selected class to chosen
+            e.target.closest('.option-card').classList.add('selected');
+
+            // Handle conditional price input
+            if (e.target.value === 'alterou_preco') {
+                priceContainer.classList.remove('hidden');
+                novoPrecoInput.setAttribute('required', 'required');
+            } else {
+                priceContainer.classList.add('hidden');
+                novoPrecoInput.removeAttribute('required');
+                novoPrecoInput.value = '';
+            }
+        });
+    });
+
+    // Form submission
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const selectedStatus = document.querySelector('input[name="status"]:checked').value;
+        const novoPreco = novoPrecoInput.value;
+
+        // Validation
+        if (selectedStatus === 'alterou_preco') {
+            if (!novoPreco || Number(novoPreco) < 1000) {
+                alert("Por favor, informe um valor válido (mínimo R$ 1.000).");
+                return;
+            }
+        }
+
+        btnSubmit.setAttribute('disabled', 'disabled');
+        btnSubmit.textContent = 'Enviando...';
+
+        const payload = {
+            action: "saveResponse",
+            id_imovel: idParam,
+            status: selectedStatus,
+            novo_preco: novoPreco ? Number(novoPreco) : null,
+            data_resposta: new Date().toISOString()
+        };
+
+        if (CONFIG.SCRIPT_URL === 'SUBSTITUIR_PELA_URL_DO_WEB_APP' || !CONFIG.SCRIPT_URL) {
+            // Mock success
+            setTimeout(() => {
+                formContent.classList.add('hidden');
+                successMessage.classList.remove('hidden');
+            }, 1000);
+            return;
+        }
+
+        try {
+            // Send to Apps Script
+            const response = await fetch(CONFIG.SCRIPT_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams(payload)
+            });
+
+            const result = await response.json();
+            
+            if (result.success) {
+                formContent.classList.add('hidden');
+                successMessage.classList.remove('hidden');
+            } else {
+                throw new Error(result.error || 'Erro desconhecido ao salvar.');
+            }
+            
+        } catch (error) {
+            console.error(error);
+            alert("Ocorreu um erro ao enviar. Por favor, tente novamente.");
+            btnSubmit.removeAttribute('disabled');
+            btnSubmit.textContent = 'Confirmar Atualização';
+        }
+    });
+
+    // Start
+    init();
+
+</script>
+</body>
+</html>
